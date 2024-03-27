@@ -93,7 +93,7 @@ async function sub() {
 	}
 }
 
-function unsub() {
+async function unsub() {
 	const token = localStorage.getItem('token')
 	if (token) {
 		localStorage.removeItem('token')
@@ -103,9 +103,17 @@ function unsub() {
 			body: JSON.stringify({ method: "unsubscribe", token })
 		})
 	}
-	deleteToken(messaging)
-	unregisterServiceWorker()
-	alert("退订成功")
+	// provide the service worker registration to the messaging instance
+	if (!messaging.swRegistration) {
+		messaging.swRegistration = await registerServiceWorker()
+	}
+	const success = await deleteToken(messaging)
+	await unregisterServiceWorker()
+	if (success) {
+		alert("退订成功")
+	} else {
+		alert("退订失败")
+	}
 }
 
 async function registerServiceWorker() {

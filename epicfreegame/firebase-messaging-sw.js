@@ -1,5 +1,5 @@
-import { initializeApp } from "//www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getMessaging, onBackgroundMessage } from "//www.gstatic.com/firebasejs/10.8.1/firebase-messaging-sw.js";
+import { initializeApp } from "//www.gstatic.com/firebasejs/10.8.1/firebase-app.js"
+import { getMessaging } from "//www.gstatic.com/firebasejs/10.8.1/firebase-messaging-sw.js"
 
 const firebaseApp = initializeApp({
 	apiKey: "AIzaSyALyDL5Ixr4gVf6T5HMlV8W8rH6yiA41ys",
@@ -11,12 +11,4 @@ const firebaseApp = initializeApp({
 	measurementId: "G-PEG3EM3YFY"
 })
 
-const messaging = getMessaging(firebaseApp)
-
-onBackgroundMessage(messaging, payload => {
-	const options = {
-		body: payload.notification.body,
-		icon: payload.notification.image,
-	}
-	return self.registration.showNotification(payload.notification.title, options)
-})
+getMessaging(firebaseApp)

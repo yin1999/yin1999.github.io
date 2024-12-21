@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/firebase-app.js'
-import { initializeAnalytics } from "firebase/firebase-analytics.js"
-import { getMessaging, getToken, deleteToken } from 'firebase/firebase-messaging.js'
+import { initializeAnalytics } from 'firebase/firebase-analytics.js'
+import { getMessaging, getToken, deleteToken, onMessage } from 'firebase/firebase-messaging.js'
 import { getDatabase, ref, onValue } from 'firebase/firebase-database.js'
 
 const firebaseConfig = {
@@ -18,42 +18,53 @@ let messaging = null;
 const subscribeURL = "//firebase-subscribe-k2xj5acqmq-uc.a.run.app/"
 const serviceWorker = "./firebase-messaging-sw.js"
 
-function getQueryVariable(query, name) {
-	const params = new URLSearchParams(query)
-	return params.get(name)
-}
-
 /**
  * 
- * @param {Array<String>} items
+ * @param {Object.<string, string>} items
  */
 function showGame(items) {
+	const gameList = document.querySelector("#gameList")
+	if (Object.keys(items).length === 0) {
+		gameList.replaceChildren(document.createTextNode("暂无免费游戏"))
+	}
 	const df = new DocumentFragment();
-	for (const item of items) {
+	for (const [title, url] of Object.entries(items)) {
+		const a = document.createElement("a")
+		a.href = `//store.epicgames.com/zh-CN/${url}`
+		a.target = "_blank"
+		a.textContent = title
 		const li = document.createElement("li")
-		li.innerHTML = `<a href="//store.epicgames.com/zh-CN/${item}" target="_blank">${item.substring(item.indexOf('/')+1)}</a>`
+		li.appendChild(a)
 		df.appendChild(li)
 	}
-	document.querySelector("#gameList").appendChild(df)
+	gameList.replaceChildren(df)
+}
+
+function isFromNotification() {
+	const params = new URLSearchParams(location.search)
+	return params.get("from") === "notification"
 }
 
 async function init() {
-	let slug = getQueryVariable(window.location.search.substring(1), "slug")
-	if (slug) {
-		showGame(slug.split(';'))
-	}
 	const firebaseApp = initializeApp(firebaseConfig)
 	initializeAnalytics(firebaseApp, {
 		cookie_flags: "SameSite=None; Secure; Partitioned"
 	})
 	messaging = getMessaging(firebaseApp)
-	if (!slug) {
+	if (isFromNotification()) {
+		// the page is opened from the notification
+		onMessage(messaging, (payload) => {
+			showGame(payload.data)
+		})
+	} else {
 		const db = getDatabase(firebaseApp)
-		const slugRef = ref(db, "freeGameList")
+		const slugRef = ref(db, "freeGames")
 		onValue(slugRef, snapshot => {
 			showGame(snapshot.val())
 		})
 	}
+	// update the service worker registration
+	await registerServiceWorker(true)
 }
 
 async function sub() {
@@ -116,20 +127,22 @@ async function unsub() {
 	}
 }
 
-async function registerServiceWorker() {
+async function registerServiceWorker(updateOnly = false) {
 	// check if service worker has been registered
 	let registration = await navigator.serviceWorker.getRegistration(serviceWorker)
 	if (registration) {
 		// try to update the service worker
 		await registration.update()
-	} else {
+	} else if (!updateOnly) {
 		registration = await navigator.serviceWorker.register(serviceWorker, {
 			type: "module",
 			updateViaCache: "all"
 		})
 	}
-	// wait for the service worker to be ready
-	await navigator.serviceWorker.ready
+	if (registration) {
+		// wait for the service worker to be ready
+		await navigator.serviceWorker.ready
+	}
 	return registration
 }
 
@@ -144,3 +157,11 @@ init()
 
 document.querySelector('#sub').addEventListener('click', sub)
 document.querySelector('#unsub').addEventListener('click', unsub)
+// add event listener for the service worker
+navigator.serviceWorker.addEventListener('message', (evt) => {
+	const internalPayload = evt.data;
+	// workaround: ignore the message sent by firebase messaging
+	if (!internalPayload.isFirebaseMessaging) {
+		showGame(evt.data)
+	}
+})

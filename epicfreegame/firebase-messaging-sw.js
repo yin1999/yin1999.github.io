@@ -1,5 +1,5 @@
-import { initializeApp } from "//www.gstatic.com/firebasejs/11.1.0/firebase-app.js"
-import { getMessaging, onBackgroundMessage } from "//www.gstatic.com/firebasejs/11.1.0/firebase-messaging-sw.js"
+import { initializeApp } from "//www.gstatic.com/firebasejs/12.15.0/firebase-app.js"
+import { getMessaging, onBackgroundMessage } from "//www.gstatic.com/firebasejs/12.15.0/firebase-messaging-sw.js"
 import firebaseConfig from "./config.js"
 
 self.addEventListener("install", (evt) => {
